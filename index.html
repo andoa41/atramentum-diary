@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#070605" />
+  <title>Atramentum — 泡沫の古書</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+
+  <!-- Google Fonts: カリグラフィー・手書き風フォント -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Klee+One:wght@400;600&family=Yuji+Syuku&family=Homemade+Apple&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- インクの滲み・吸い込み用のSVGフィルター定義 -->
+  <svg class="svg-filters" aria-hidden="true">
+    <defs>
+      <!-- 万年筆インクの微細な繊維滲みフィルター -->
+      <filter id="ink-bleed-filter" x="-10%" y="-10%" width="120%" height="120%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.065" numOctaves="3" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+        <feGaussianBlur in="displaced" stdDeviation="0.25" result="blurred" />
+        <feMerge>
+          <feMergeNode in="blurred" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+
+      <!-- インクが羊皮紙に吸い込まれて消える際の動的フィルター -->
+      <filter id="ink-absorb-filter" x="-25%" y="-25%" width="150%" height="150%">
+        <feTurbulence id="absorb-turbulence" type="fractalNoise" baseFrequency="0.032" numOctaves="4" seed="8" result="noise" />
+        <feDisplacementMap id="absorb-displacement" in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+        <feGaussianBlur id="absorb-blur" in="displaced" stdDeviation="0" result="blurred" />
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- 背景のキャンドルライト＆アンティークデスク空間 -->
+  <div class="ambient-room" id="ambient-room">
+    <div class="candle-glow"></div>
+    <div class="vignette-overlay"></div>
+    <div class="dust-particles" id="dust-particles"></div>
+  </div>
+
+  <!-- 上部フローティングメニュー -->
+  <header class="top-bar" id="top-bar">
+    <button type="button" class="brand-badge" id="close-book-btn" title="古書を閉じる">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+      </svg>
+      <span class="brand-title">ATRAMENTUM</span>
+    </button>
+
+    <div class="top-controls">
+      <!-- 入力モード切替（手書きペン / キーボード） -->
+      <div class="mode-switch" role="group" aria-label="筆記具の切替">
+        <button type="button" class="mode-btn active" id="mode-pen-btn" title="手書き（Apple Pencil / 指 / マウス）">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
+          <span>羽根ペン</span>
+        </button>
+        <button type="button" class="mode-btn" id="mode-type-btn" title="キーボード入力">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg>
+          <span>活字入力</span>
+        </button>
+      </div>
+
+      <!-- 手書き時の即時吸い込み・クリアボタン -->
+      <button type="button" class="icon-btn hidden" id="clear-ink-btn" title="書きかけのインクを拭う" aria-label="インクを拭う">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9">
+          <path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z"></path>
+          <line x1="17" y1="17" x2="11" y2="11"></line>
+        </svg>
+      </button>
+
+      <button type="button" class="icon-btn hidden" id="absorb-now-btn" title="今すぐインクを紙に染み込ませる" aria-label="紙に染み込ませる">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9">
+          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+        </svg>
+      </button>
+
+      <!-- 効果音 ON/OFF -->
+      <button type="button" class="icon-btn" id="sound-toggle-btn" title="筆記音・環境音のON/OFF" aria-label="効果音切替">
+        <svg id="sound-on-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+        </svg>
+        <svg id="sound-off-icon" class="hidden" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+      </button>
+
+      <!-- 記憶の断片（過去の対話ログ） -->
+      <button type="button" class="icon-btn" id="history-btn" title="記憶の断片（過去の筆談履歴）" aria-label="記憶の断片">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <span class="badge-dot hidden" id="history-badge"></span>
+      </button>
+
+      <!-- 設定（Gemini API設定） -->
+      <button type="button" class="icon-btn" id="settings-btn" title="古書の魔力設定 (Gemini API)" aria-label="設定">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span class="api-status-dot" id="api-status-dot"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- メインステージ：3Dハードカバー古書（表紙が物理的に左へ開いて見開きになる構造） -->
+  <main class="stage">
+    <div class="book-3d-stage is-closed" id="book-3d-stage">
+      <!-- 開いた本体（革の外装と左右の羊皮紙見開き） -->
+      <div class="open-book-chassis" id="open-book-chassis">
+        <!-- 左側の革ボードと紙束の厚み（レイヤー積層） -->
+        <div class="page-block-edges left-edges"></div>
+        <!-- 右側の革ボードと紙束の厚み（レイヤー積層） -->
+        <div class="page-block-edges right-edges"></div>
+
+        <!-- 見開き羊皮紙スプレッド（左頁＋右頁） -->
+        <div class="parchment-spread" id="parchment-spread">
+          <!-- 左ページの羊皮紙背景・経年変化レイヤー -->
+          <div class="parchment-leaf left-leaf" id="left-leaf">
+            <div class="organic-stain stain-l1"></div>
+            <div class="organic-stain stain-l2"></div>
+            <div class="organic-stain stain-l3"></div>
+            <div class="leaf-edge-wear"></div>
+          </div>
+
+          <!-- 右ページの羊皮紙背景・経年変化レイヤー -->
+          <div class="parchment-leaf right-leaf" id="right-leaf">
+            <div class="organic-stain stain-r1"></div>
+            <div class="organic-stain stain-r2"></div>
+            <div class="organic-stain stain-r3"></div>
+            <div class="leaf-edge-wear"></div>
+          </div>
+
+          <!-- 中央の自然なページの沈み込み陰影（人工的な黒帯や点線ではなく光学的な陰影のみ） -->
+          <div class="natural-spine-crease" aria-hidden="true"></div>
+
+          <!-- 見開き全面に自由に書き込めるインタラクティブ筆記サーフェス -->
+          <div class="writing-surface" id="writing-surface">
+            <!-- 1. 手書きストローク用キャンバス（左右どちらのページにも自由に書ける） -->
+            <canvas id="ink-canvas" class="ink-canvas"></canvas>
+
+            <!-- 2. キーボード入力文字の筆記レイヤー -->
+            <div id="typed-ink-layer" class="typed-ink-layer" aria-live="polite">
+              <div class="page-text-column left-column" id="typed-left-col"></div>
+              <div class="page-text-column right-column" id="typed-right-col"></div>
+            </div>
+
+            <!-- 3. 古書からの返事が浮かび上がるレイヤー -->
+            <div id="riddle-reply-layer" class="riddle-reply-layer" aria-live="assertive">
+              <div class="page-text-column left-column" id="reply-left-col"></div>
+              <div class="page-text-column right-column" id="reply-right-col"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3D回転して開くハードカバー表紙フラップ（閉じた状態では正面にあり、クリックで左へ180度開く） -->
+      <div class="front-cover-flap" id="open-diary-trigger" role="button" tabindex="0" aria-label="古書を開く">
+        <!-- 表紙の表面（表1：黒革・真鍮金具・空押し紋章） -->
+        <div class="cover-face cover-front">
+          <div class="spine-band band-1"></div>
+          <div class="spine-band band-2"></div>
+          <div class="spine-band band-3"></div>
+          <div class="spine-band band-4"></div>
+          <div class="book-spine-groove"></div>
+
+          <div class="brass-corner top-left">
+            <svg viewBox="0 0 60 60" class="corner-filigree"><path d="M2 58 L2 8 Q2 2 8 2 L58 2 L46 14 L18 14 Q14 14 14 18 L14 46 Z" fill="currentColor"/><circle cx="10" cy="10" r="2.2" fill="#1a140e"/></svg>
+          </div>
+          <div class="brass-corner top-right">
+            <svg viewBox="0 0 60 60" class="corner-filigree"><path d="M58 58 L58 8 Q58 2 52 2 L2 2 L14 14 L42 14 Q46 14 46 18 L46 46 Z" fill="currentColor"/><circle cx="50" cy="10" r="2.2" fill="#1a140e"/></svg>
+          </div>
+          <div class="brass-corner bottom-left">
+            <svg viewBox="0 0 60 60" class="corner-filigree"><path d="M2 2 L2 52 Q2 58 8 58 L58 58 L46 46 L18 46 Q14 46 14 42 L14 14 Z" fill="currentColor"/><circle cx="10" cy="50" r="2.2" fill="#1a140e"/></svg>
+          </div>
+          <div class="brass-corner bottom-right">
+            <svg viewBox="0 0 60 60" class="corner-filigree"><path d="M58 2 L58 52 Q58 58 52 58 L2 58 L14 46 L42 46 Q46 46 46 42 L46 14 Z" fill="currentColor"/><circle cx="50" cy="50" r="2.2" fill="#1a140e"/></svg>
+          </div>
+
+          <div class="cover-emboss-frame">
+            <div class="cover-inner-filigree">
+              <svg class="center-medallion" viewBox="0 0 200 200" aria-hidden="true">
+                <circle cx="100" cy="100" r="78" fill="none" stroke="currentColor" stroke-width="1.1" opacity="0.5" />
+                <circle cx="100" cy="100" r="64" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.68" />
+                <polygon points="100,26 118,82 174,100 118,118 100,174 82,118 26,100 82,82" fill="none" stroke="currentColor" stroke-width="1.1" opacity="0.58" />
+                <polygon points="100,44 139,61 156,100 139,139 100,156 61,139 44,100 61,61" fill="none" stroke="currentColor" stroke-width="0.9" opacity="0.42" />
+                <circle cx="100" cy="100" r="22" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.72" />
+                <circle cx="100" cy="100" r="4.5" fill="currentColor" opacity="0.6" />
+              </svg>
+            </div>
+          </div>
+          <div class="closed-book-fore-edge"></div>
+        </div>
+
+        <!-- 表紙の裏面（表2：見返しマーブル紙と左ページへのトランジション面） -->
+        <div class="cover-face cover-inside"></div>
+      </div>
+    </div>
+
+    <!-- 活字（キーボード）モード選択時のみ画面下部に静かに現れる入力バー -->
+    <form class="floating-type-bar hidden" id="type-controls" autocomplete="off">
+      <input
+        type="text"
+        id="magic-text-input"
+        class="magic-text-input"
+        placeholder="言葉を綴る…"
+        maxlength="200"
+      />
+      <button type="submit" class="magic-btn primary-btn" id="type-submit-btn">
+        <span>刻む</span>
+      </button>
+    </form>
+  </main>
+
+  <!-- 記憶の断片（過去の対話ログモーダル） -->
+  <aside class="modal-backdrop hidden" id="history-modal" aria-hidden="true">
+    <div class="parchment-modal">
+      <div class="modal-header">
+        <h2>記憶の断片</h2>
+        <button type="button" class="modal-close-btn" id="close-history-btn" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="history-list" id="history-list">
+        <p class="empty-history">まだ羊皮紙には何も刻まれていません。</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="magic-btn secondary-btn" id="clear-history-btn">記憶をすべて白紙に戻す</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 古書の魔力設定（Gemini APIキー設定モーダル） -->
+  <aside class="modal-backdrop hidden" id="settings-modal" aria-hidden="true">
+    <div class="parchment-modal">
+      <div class="modal-header">
+        <h2>古書の魔力設定 (Gemini API)</h2>
+        <button type="button" class="modal-close-btn" id="close-settings-btn" aria-label="閉じる">&times;</button>
+      </div>
+      <div class="settings-body">
+        <p class="settings-lead">
+          そのままでも古書に眠る記憶と筆談できますが、Google Gemini APIキーを設定すると、<strong>手書き文字のAI解読（Apple Pencil等での自由な筆記認識）</strong>と、<strong>より深い対話</strong>が可能になります。
+        </p>
+
+        <div class="form-group">
+          <label for="gemini-api-key">Gemini API Key</label>
+          <div class="input-with-toggle">
+            <input
+              type="password"
+              id="gemini-api-key"
+              class="settings-input"
+              placeholder="AIzaSy..."
+              autocomplete="off"
+            />
+            <button type="button" class="small-btn" id="toggle-key-visibility">表示</button>
+          </div>
+          <small class="form-hint">
+            ※キーはお使いのブラウザ内（localStorage）にのみ保存されます。<br />
+            ※ <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a> から取得できます。
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="auto-absorb-delay">手を止めてからインクが吸い込まれるまでの時間</label>
+          <select id="auto-absorb-delay" class="settings-input">
+            <option value="2000">2.0秒（早め）</option>
+            <option value="3200" selected>3.2秒（標準）</option>
+            <option value="5000">5.0秒（ゆっくり長文を書く向け）</option>
+            <option value="0">自動で吸い込まない（上部の雫アイコンで実行）</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="reply-hold-duration">浮かび上がった返事が消えるまでの時間</label>
+          <select id="reply-hold-duration" class="settings-input">
+            <option value="5000">5秒</option>
+            <option value="7500" selected>7.5秒（標準）</option>
+            <option value="12000">12秒（じっくり読む）</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="magic-btn secondary-btn" id="clear-api-key-btn">キーを削除</button>
+        <button type="button" class="magic-btn primary-btn" id="save-settings-btn">保存する</button>
+      </div>
+    </div>
+  </aside>
+
+  <script src="app.js"></script>
+</body>
+</html>
